@@ -5,6 +5,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
+import Link from "next/link";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
 import { container } from "@/lib/ui";
@@ -25,7 +26,13 @@ export const viewport: Viewport = {
   ],
 };
 
-const footerLinks = ["Privacidad", "Términos", "Contacto", "Ayuda"];
+const footerLinks = [
+  { label: "Nosotros", href: "/nosotros" },
+  { label: "Contacto", href: "/contacto" },
+  { label: "Privacidad", href: "/legal/privacidad" },
+  { label: "Términos", href: "/legal/terminos" },
+  { label: "Reembolsos", href: "/legal/reembolsos" },
+];
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -50,15 +57,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
                   reservados.
                 </p>
               </div>
-              <nav className="flex items-center gap-6">
+              <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
                 {footerLinks.map((l) => (
-                  <a
-                    key={l}
-                    href="#"
+                  <Link
+                    key={l.href}
+                    href={l.href}
                     className="transition-colors duration-200 hover:text-primary"
                   >
-                    {l}
-                  </a>
+                    {l.label}
+                  </Link>
                 ))}
               </nav>
             </div>
