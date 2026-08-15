@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+/* Dark mode por clase (.dark en <html>), controlado por next-themes. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ═══════════════════════════════════════════════════════════════════════
+   NEXUS DIGITAL — sistema de tokens
+   Marca técnica/corporativa: azul eléctrico, glassmorphism, glows sutiles.
+   Titulares Geist · texto Inter · etiquetas/datos JetBrains Mono.
+   ═══════════════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #f7f9fb;              /* surface / background */
+  --surface: #ffffff;        /* surface-container-lowest (cards) */
+  --surface-2: #eceef0;      /* surface-container (fills, hover) */
+  --surface-3: #e6e8ea;      /* surface-container-high (números fantasma) */
+  --fg: #191c1e;             /* on-surface */
+  --muted: #434656;          /* on-surface-variant */
+  --border: #c3c5d9;         /* outline-variant */
+  --outline: #737688;        /* outline (bordes marcados) */
+
+  --primary: #0052ff;        /* primary-container — azul eléctrico (CTA/acento) */
+  --primary-hover: #003ec7;  /* primary — hover */
+  --on-primary: #ffffff;
+  --primary-soft: #dfe3ff;   /* on-primary-container / tinte suave */
+
+  --secondary-container: #d2e0fe;
+  --on-secondary-container: #39475f;
+
+  /* Gradiente de marca (membership pass, glows): azul eléctrico → azul profundo */
+  --grad-a: #0052ff;
+  --grad-b: #003ec7;
+
+  --success: #059669;
+  --warning: #b45309;
+  --danger: #ba1a1a;
+
+  /* Sombras ambientales con tinte azul de marca (DESIGN.md · Elevación) */
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 20px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 10px 30px -10px rgba(0, 82, 255, 0.14),
+    0 2px 8px -2px rgba(15, 23, 42, 0.06);
+  --shadow-lg: 0 24px 48px -16px rgba(0, 82, 255, 0.20);
+}
+
+.dark {
+  --bg: #0a192f;             /* Deep Navy (DESIGN.md) */
+  --surface: #0f2138;
+  --surface-2: #16294a;
+  --surface-3: #1c3358;
+  --fg: #eff1f3;
+  --muted: #a7b6cf;
+  --border: #24365a;
+  --outline: #3a4d75;
+
+  --primary: #3b74ff;        /* azul eléctrico más brillante sobre navy */
+  --primary-hover: #6d95ff;
+  --on-primary: #ffffff;
+  --primary-soft: #1b2f52;
+
+  --secondary-container: #1e3a63;
+  --on-secondary-container: #c6d6f2;
+
+  --grad-a: #2f6bff;
+  --grad-b: #1740b8;
+
+  --success: #34d399;
+  --warning: #fbbf24;
+  --danger: #ff5449;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 12px 32px -10px rgba(0, 0, 0, 0.65);
+  --shadow-lg: 0 28px 60px -18px rgba(0, 0, 0, 0.8);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-outline: var(--outline);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary-container: var(--secondary-container);
+  --color-on-secondary-container: var(--on-secondary-container);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --font-sans: "Inter Variable", system-ui, -apple-system, sans-serif;
+  --font-display: "Geist Variable", "Inter Variable", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+/* Titulares en Geist: técnica, geométrica, tracking apretado. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* ── Utilidades del sistema ── */
+.font-display {
+  font-family: var(--font-display);
+}
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Eyebrow: etiqueta mono en mayúsculas (kicker de sección), en azul de marca. */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+
+/* Gradiente de marca (membership pass, brand mark opcional). */
+.bg-grad {
+  background-image: linear-gradient(135deg, var(--grad-a), var(--grad-b));
+}
+
+/* Glassmorphism: barra de navegación y contenedores translúcidos. */
+.glass {
+  background-color: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
+}
+
+/* Tarjeta glass: superficie sólida, borde sutil, elevación azul al hover. */
+.glass-card {
+  background-color: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+}
+
+.shadow-soft {
+  box-shadow: var(--shadow-sm);
+}
+.shadow-float {
+  box-shadow: var(--shadow-md);
+}
+.shadow-pop {
+  box-shadow: var(--shadow-lg);
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--primary) 22%, transparent);
+  color: var(--fg);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Entrada suave en carga (con retardo por variable --d). */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-in {
+  animation: fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--rot, 0deg));
+  }
+  50% {
+    transform: translateY(-10px) rotate(var(--rot, 0deg));
+  }
+}
+.animate-float {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Entrada/float dependen de la animación para revelarse: fuérzalos visibles. */
+  .animate-in,
+  .animate-float {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .glass-card:hover {
+    transform: none !important;
+  }
+}
