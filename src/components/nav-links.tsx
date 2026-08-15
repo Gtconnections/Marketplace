@@ -2,15 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Compass,
-  Heart,
-  CreditCard,
-  LayoutDashboard,
-  LogOut,
-  LogIn,
-  UserPlus,
-} from "@/components/icons";
+import { Compass, Heart, LayoutDashboard } from "@/components/icons";
 import { btn, cn } from "@/lib/ui";
 
 const ICON = "h-4 w-4 transition-transform duration-200 group-hover:-translate-y-0.5";
@@ -25,9 +17,7 @@ export function NavLinks({
 }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
-    href === "/services"
-      ? pathname.startsWith("/services")
-      : pathname === href;
+    href === "/services" ? pathname.startsWith("/services") : pathname === href;
 
   const pill = (href: string) =>
     cn(
@@ -43,40 +33,16 @@ export function NavLinks({
         <Compass className={ICON} /> Explorar
       </Link>
 
-      {authed ? (
-        <>
-          <Link href="/favorites" className={pill("/favorites")}>
-            <Heart className={ICON} filled={isActive("/favorites")} /> Favoritos
-          </Link>
-          <Link href="/dashboard" className={pill("/dashboard")}>
-            <CreditCard className={ICON} /> Mis suscripciones
-          </Link>
-          {isAdmin && (
-            <Link
-              href="/vendor"
-              className={cn(btn("secondary", "sm"), "group gap-2")}
-            >
-              <LayoutDashboard className={ICON} /> Admin
-            </Link>
-          )}
-          <form action="/auth/signout" method="post">
-            <button type="submit" className={cn(pill("/__signout"), "cursor-pointer")}>
-              <LogOut className={ICON} /> Salir
-            </button>
-          </form>
-        </>
-      ) : (
-        <>
-          <Link href="/login" className={pill("/login")}>
-            <LogIn className={ICON} /> Entrar
-          </Link>
-          <Link
-            href="/signup"
-            className={cn(btn("primary", "sm"), "group gap-2")}
-          >
-            <UserPlus className={ICON} /> Crear cuenta
-          </Link>
-        </>
+      {authed && (
+        <Link href="/favorites" className={pill("/favorites")}>
+          <Heart className={ICON} filled={isActive("/favorites")} /> Favoritos
+        </Link>
+      )}
+
+      {isAdmin && (
+        <Link href="/vendor" className={cn(btn("secondary", "sm"), "group gap-2")}>
+          <LayoutDashboard className={ICON} /> Admin
+        </Link>
       )}
     </div>
   );

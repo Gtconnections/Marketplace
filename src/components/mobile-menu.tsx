@@ -10,6 +10,8 @@ import {
   Heart,
   CreditCard,
   LayoutDashboard,
+  User,
+  Settings,
   LogOut,
   LogIn,
   UserPlus,
@@ -32,11 +34,15 @@ export function MobileMenu({
 
   const items: Item[] = [{ href: "/services", label: "Explorar", Icon: Compass }];
   if (authed) {
+    items.push({ href: "/favorites", label: "Favoritos", Icon: Heart });
+    if (!isAdmin)
+      items.push({ href: "/dashboard", label: "Mis suscripciones", Icon: CreditCard });
+    if (isAdmin)
+      items.push({ href: "/vendor", label: "Admin", Icon: LayoutDashboard });
     items.push(
-      { href: "/favorites", label: "Favoritos", Icon: Heart },
-      { href: "/dashboard", label: "Mis suscripciones", Icon: CreditCard },
+      { href: "/perfil", label: "Perfil", Icon: User },
+      { href: "/configuracion", label: "Configuración", Icon: Settings },
     );
-    if (isAdmin) items.push({ href: "/vendor", label: "Admin", Icon: LayoutDashboard });
   }
 
   const item = (href: string) =>
