@@ -9,14 +9,33 @@ function defaultName(type: PricingType) {
   return type === "one_time" ? "Acceso completo" : "Plan mensual";
 }
 
+export type PlanInitial = {
+  pricingType: PricingType;
+  planName: string;
+  interval: string;
+  price: string;
+  trialDays: string;
+};
+
 /**
  * Campos de cobro reutilizables (modelo membresía/precio fijo + intervalo,
- * precio y prueba). Se usa al crear un servicio y al añadir tiers.
+ * precio y prueba). Se usa al crear un servicio, al añadir tiers y al editar.
+ * Si se pasa `initial`, precarga los valores (modo edición).
  */
-export function PlanFields({ title = "Cómo se cobra" }: { title?: string }) {
-  const [pricingType, setPricingType] = useState<PricingType>("subscription");
-  const [planName, setPlanName] = useState(defaultName("subscription"));
-  const [interval, setInterval] = useState("month");
+export function PlanFields({
+  title = "Cómo se cobra",
+  initial,
+}: {
+  title?: string;
+  initial?: PlanInitial;
+}) {
+  const [pricingType, setPricingType] = useState<PricingType>(
+    initial?.pricingType ?? "subscription",
+  );
+  const [planName, setPlanName] = useState(
+    initial?.planName ?? defaultName("subscription"),
+  );
+  const [interval, setInterval] = useState(initial?.interval ?? "month");
   const isSubscription = pricingType === "subscription";
 
   function choose(type: PricingType) {
@@ -108,6 +127,7 @@ export function PlanFields({ title = "Cómo se cobra" }: { title?: string }) {
           step="0.01"
           className={inputCls}
           placeholder={isSubscription ? "29.00" : "199.00"}
+          defaultValue={initial?.price ?? ""}
           required
         />
       </Field>
@@ -126,6 +146,7 @@ export function PlanFields({ title = "Cómo se cobra" }: { title?: string }) {
             step="1"
             className={inputCls}
             placeholder="0"
+            defaultValue={initial?.trialDays ?? ""}
           />
         </Field>
       )}

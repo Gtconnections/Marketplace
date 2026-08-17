@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import {
-  toggleServiceStatus,
-  deletePlan,
-  duplicateService,
-} from "@/lib/actions/vendor";
-import { formatMoney, priceSuffix } from "@/lib/utils";
+import { toggleServiceStatus, duplicateService } from "@/lib/actions/vendor";
 import { SERVICE_CATEGORIES, isDemoPayments } from "@/lib/config";
 import { AddPlanForm } from "@/components/add-plan-form";
+import { PlanRow } from "@/components/plan-row";
 import { SeoForm } from "@/components/seo-form";
 import { DownloadUploader } from "@/components/download-uploader";
 import { ImageUploader } from "@/components/image-uploader";
@@ -129,36 +125,13 @@ export default async function ManageServicePage({
 
         <div className="mt-5 flex flex-col gap-3">
           {plans.map((plan) => (
-            <div
+            <PlanRow
               key={plan.id}
-              className="flex items-center justify-between gap-4 rounded-xl border border-border p-4"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-fg">{plan.name}</span>
-                  <span className={badge(plan.type === "one_time" ? "neutral" : "brand")}>
-                    {plan.type === "one_time" ? "Pago único" : "Membresía"}
-                  </span>
-                </div>
-                <p className="mt-0.5 text-sm text-muted">
-                  {formatMoney(plan.amount, plan.currency)}
-                  {priceSuffix(plan.type, plan.interval)}
-                  {plan.trial_days ? ` · ${plan.trial_days} días de prueba` : ""}
-                  {!isDemoPayments && !plan.stripe_price_id && (
-                    <span className="text-warning"> · sin precio en Stripe</span>
-                  )}
-                </p>
-              </div>
-              {plans.length > 1 && (
-                <form action={deletePlan}>
-                  <input type="hidden" name="plan_id" value={plan.id} />
-                  <input type="hidden" name="service_id" value={service.id} />
-                  <button type="submit" className={btn("ghost", "sm")}>
-                    Eliminar
-                  </button>
-                </form>
-              )}
-            </div>
+              plan={plan}
+              serviceId={service.id}
+              canDelete={plans.length > 1}
+              isDemo={isDemoPayments}
+            />
           ))}
         </div>
 

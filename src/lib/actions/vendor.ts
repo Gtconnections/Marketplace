@@ -234,6 +234,116 @@ export async function addPlan(
   redirect(`/vendor/services/${serviceId}`);
 }
 
+/**
+ * Edita un plan existente. En modo Stripe, como los Prices son INMUTABLES,
+ * al cambiar precio/tipo/intervalo se crea un Price nuevo y se archiva el viejo
+ * (reutilizando el Product). El nombre y los días de prueba se editan libremente.
+ */
+export async function updatePlan(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const planId = String(formData.get("plan_id") ?? "");
+  const serviceId = String(formData.get("service_id") ?? "");
+  if (!planId) return { error: "Plan no válido." };
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login?next=/vendor");
+  if (!isAdminEmail(user.email)) return { error: "No autorizado." };
+
+  const parsed = parsePlanFields(formData);
+  if ("error" in parsed) return { error: parsed.error };
+
+  // Plan actual (RLS: solo el dueño lo ve) + título del servicio.
+  const { data: existing } = await supabase
+    .from("plans")
+    .select(
+      "id, amount, type, interval, stripe_price_id, stripe_product_id, service:services(title)",
+    )
+    .eq("id", planId)
+    .single();
+  if (!existing) return { error: "Plan no encontrado." };
+
+  const serviceTitle =
+    (existing.service as { title?: string } | null)?.title ?? "Servicio";
+
+  let stripeProductId = existing.stripe_product_id as string | null;
+  let stripePriceId = existing.stripe_price_id as string | null;
+
+  if (!isDemoPayments) {
+    const priceChanged =
+      existing.amount !== parsed.amount ||
+      existing.type !== parsed.pricingType ||
+      (existing.interval ?? null) !== (parsed.interval ?? null);
+    const needsNewPrice = !existing.stripe_price_id || priceChanged;
+
+    try {
+      if (needsNewPrice) {
+        // Reutiliza el Product si existe; si no, créalo.
+        if (stripeProductId) {
+          await stripe.products.update(stripeProductId, {
+            name: `${serviceTitle} — ${parsed.planName}`,
+          });
+        } else {
+          const product = await stripe.products.create({
+            name: `${serviceTitle} — ${parsed.planName}`,
+            metadata: { service_id: serviceId },
+          });
+          stripeProductId = product.id;
+        }
+        const price = await stripe.prices.create({
+          product: stripeProductId,
+          unit_amount: parsed.amount,
+          currency: "usd",
+          ...(parsed.isSubscription
+            ? { recurring: { interval: parsed.interval as "month" | "year" } }
+            : {}),
+        });
+        // Archiva el precio anterior (si había).
+        if (existing.stripe_price_id) {
+          try {
+            await stripe.prices.update(existing.stripe_price_id, {
+              active: false,
+            });
+          } catch {
+            /* si falla el archivado, seguimos */
+          }
+        }
+        stripePriceId = price.id;
+      } else if (stripeProductId) {
+        // Solo cambió nombre/prueba: refresca el nombre del Product.
+        await stripe.products.update(stripeProductId, {
+          name: `${serviceTitle} — ${parsed.planName}`,
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "error en Stripe";
+      return { error: `Falló al actualizar el precio en Stripe: ${msg}` };
+    }
+  }
+
+  const { error } = await supabase
+    .from("plans")
+    .update({
+      name: parsed.planName,
+      type: parsed.pricingType,
+      interval: parsed.interval,
+      trial_days: parsed.trialDays,
+      amount: parsed.amount,
+      stripe_product_id: stripeProductId,
+      stripe_price_id: stripePriceId,
+    })
+    .eq("id", planId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`/vendor/services/${serviceId}`);
+  revalidatePath("/");
+  return { ok: true };
+}
+
 /** Elimina un plan (tier) de un servicio. */
 export async function deletePlan(formData: FormData): Promise<void> {
   const planId = String(formData.get("plan_id") ?? "");
