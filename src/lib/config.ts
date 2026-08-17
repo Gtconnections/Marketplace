@@ -6,8 +6,11 @@
 export const siteUrl =
   process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
 
-/** Comisión de la plataforma sobre cada suscripción, en porcentaje (0-100). */
-export const platformFeePercent = Number(process.env.PLATFORM_FEE_PERCENT ?? "10");
+/**
+ * (No usado en modo cuenta única.) Se conservaba para el modelo multi-vendedor
+ * con Stripe Connect. Hoy todos los pagos entran completos a tu cuenta.
+ */
+export const platformFeePercent = Number(process.env.PLATFORM_FEE_PERCENT ?? "0");
 
 /**
  * Modo de pagos:

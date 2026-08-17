@@ -4,11 +4,9 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Webhook de Stripe (configúralo como webhook de CONNECT para recibir también
- * los eventos de las cuentas conectadas de tus vendedores).
+ * Webhook de Stripe (cuenta única, endpoint normal — sin Connect).
  *
  * Eventos manejados:
- *  - account.updated              → marca al vendedor como habilitado para cobrar
  *  - checkout.session.completed   → crea la fila de suscripción
  *  - customer.subscription.*      → sincroniza estado y fin de período
  *
@@ -35,16 +33,6 @@ export async function POST(request: Request) {
 
   try {
     switch (event.type) {
-      // El vendedor terminó (o avanzó) su onboarding de Connect.
-      case "account.updated": {
-        const account = event.data.object as Stripe.Account;
-        await supabase
-          .from("vendors")
-          .update({ charges_enabled: account.charges_enabled ?? false })
-          .eq("stripe_account_id", account.id);
-        break;
-      }
-
       // Un cliente completó el checkout: suscripción (membresía) o pago único.
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;

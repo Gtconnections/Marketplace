@@ -7,7 +7,7 @@ import { SchedulePublish } from "@/components/schedule-publish";
 import { toggleServiceStatus } from "@/lib/actions/vendor";
 import { publishDueServices } from "@/lib/publish-due";
 import { formatMoney, priceSuffix } from "@/lib/utils";
-import { platformFeePercent, isDemoPayments } from "@/lib/config";
+import { isDemoPayments } from "@/lib/config";
 import { Download, Tag, Users, Settings } from "@/components/icons";
 import { container, card, badge, btn, cn } from "@/lib/ui";
 import type { Plan, Service } from "@/lib/types";
@@ -245,49 +245,32 @@ export default async function VendorPage({
       )}
 
       {/* Estado de pagos */}
-      {isDemoPayments ? (
-        <div className={card(false, "mt-8 flex flex-wrap items-center justify-between gap-4 p-6")}>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-fg">Pagos</h2>
-              <span className={badge("brand")}>Modo demo</span>
-            </div>
-            <p className="mt-1.5 max-w-xl text-sm text-muted">
-              Los pagos están simulados: puedes publicar servicios y probar todo
-              el flujo sin Stripe. Cuando quieras cobrar de verdad, activa Stripe
-              (variable <span className="font-mono text-xs">NEXT_PUBLIC_PAYMENTS_MODE=stripe</span>).
-            </p>
+      <div className={card(false, "mt-8 flex flex-wrap items-center justify-between gap-4 p-6")}>
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="font-semibold text-fg">Pagos</h2>
+            <span className={badge(isDemoPayments ? "brand" : "success")}>
+              {isDemoPayments ? "Modo demo" : "Stripe activo"}
+            </span>
           </div>
+          <p className="mt-1.5 max-w-xl text-sm text-muted">
+            {isDemoPayments ? (
+              <>
+                Los pagos están simulados: puedes publicar servicios y probar todo
+                el flujo sin Stripe. Cuando quieras cobrar de verdad, pon{" "}
+                <span className="font-mono text-xs">NEXT_PUBLIC_PAYMENTS_MODE=stripe</span>{" "}
+                con tus claves.
+              </>
+            ) : (
+              <>
+                Cobros reales con Stripe. Cada pago entra{" "}
+                <span className="font-medium text-fg">completo a tu cuenta</span>{" "}
+                (cuenta única, sin comisiones de plataforma).
+              </>
+            )}
+          </p>
         </div>
-      ) : (
-        <div
-          className={cn(
-            card(false, "mt-8 flex flex-wrap items-center justify-between gap-4 p-6"),
-            !vendor.charges_enabled && "border-warning/40 bg-warning/10",
-          )}
-        >
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-fg">Pagos (Stripe Connect)</h2>
-              <span className={badge(vendor.charges_enabled ? "success" : "warning")}>
-                {vendor.charges_enabled ? "Habilitado" : "Pendiente"}
-              </span>
-            </div>
-            <p className="mt-1.5 max-w-xl text-sm text-muted">
-              {vendor.charges_enabled
-                ? "Tu cuenta está lista para recibir pagos."
-                : "Completa tu configuración para poder cobrar suscripciones."}{" "}
-              Comisión de la plataforma:{" "}
-              <span className="font-medium text-fg">{platformFeePercent}%</span>.
-            </p>
-          </div>
-          {!vendor.charges_enabled && (
-            <a href="/vendor/onboard" className={btn("primary", "md")}>
-              Configurar pagos
-            </a>
-          )}
-        </div>
-      )}
+      </div>
 
       {/* Servicios */}
       <h2 className="mb-4 mt-10 text-lg font-semibold tracking-tight text-fg">

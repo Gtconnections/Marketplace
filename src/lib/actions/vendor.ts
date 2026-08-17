@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { stripe } from "@/lib/stripe";
-import { isAdminEmail } from "@/lib/config";
+import { isAdminEmail, isDemoPayments } from "@/lib/config";
 import { slugify, shortId } from "@/lib/utils";
 import type { Plan } from "@/lib/types";
 
@@ -56,13 +56,12 @@ function parsePlanFields(formData: FormData): ParsedPlan | { error: string } {
 }
 
 /**
- * Crea el Product + Price en Stripe (cuenta conectada del vendedor) e inserta
- * el plan en la base de datos. Reutilizado al crear el servicio y al añadir
- * planes adicionales (tiers).
+ * Crea el Product + Price en tu cuenta de Stripe (cuenta única) e inserta el
+ * plan en la base de datos. En modo demo no toca Stripe (sin precio).
+ * Reutilizado al crear el servicio y al añadir planes adicionales (tiers).
  */
 async function createStripePriceAndPlan(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  vendorStripeAccountId: string | null,
   serviceId: string,
   serviceTitle: string,
   p: ParsedPlan,
@@ -70,26 +69,20 @@ async function createStripePriceAndPlan(
   let stripeProductId: string | null = null;
   let stripePriceId: string | null = null;
 
-  if (vendorStripeAccountId) {
+  if (!isDemoPayments) {
     try {
-      const product = await stripe.products.create(
-        {
-          name: `${serviceTitle} — ${p.planName}`,
-          metadata: { service_id: serviceId },
-        },
-        { stripeAccount: vendorStripeAccountId },
-      );
-      const price = await stripe.prices.create(
-        {
-          product: product.id,
-          unit_amount: p.amount,
-          currency: "usd",
-          ...(p.isSubscription
-            ? { recurring: { interval: p.interval as "month" | "year" } }
-            : {}),
-        },
-        { stripeAccount: vendorStripeAccountId },
-      );
+      const product = await stripe.products.create({
+        name: `${serviceTitle} — ${p.planName}`,
+        metadata: { service_id: serviceId },
+      });
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: p.amount,
+        currency: "usd",
+        ...(p.isSubscription
+          ? { recurring: { interval: p.interval as "month" | "year" } }
+          : {}),
+      });
       stripeProductId = product.id;
       stripePriceId = price.id;
     } catch (err) {
@@ -193,7 +186,6 @@ export async function createServiceWithPlan(
   // 2) Crear el plan (Stripe + BD).
   const res = await createStripePriceAndPlan(
     supabase,
-    vendor.stripe_account_id,
     service.id,
     title,
     parsed,
@@ -230,10 +222,8 @@ export async function addPlan(
   const parsed = parsePlanFields(formData);
   if ("error" in parsed) return { error: parsed.error };
 
-  const vendor = service.vendor as { stripe_account_id: string | null };
   const res = await createStripePriceAndPlan(
     supabase,
-    vendor?.stripe_account_id ?? null,
     serviceId,
     service.title,
     parsed,
@@ -255,20 +245,13 @@ export async function deletePlan(formData: FormData): Promise<void> {
   // Archiva el precio en Stripe (si existe) para no dejarlo activo.
   const { data: plan } = await supabase
     .from("plans")
-    .select("stripe_price_id, service:services(vendor:vendors(stripe_account_id))")
+    .select("stripe_price_id")
     .eq("id", planId)
     .single();
 
-  const acct = (
-    plan?.service as { vendor?: { stripe_account_id?: string | null } } | null
-  )?.vendor?.stripe_account_id;
-  if (plan?.stripe_price_id && acct) {
+  if (plan?.stripe_price_id && !isDemoPayments) {
     try {
-      await stripe.prices.update(
-        plan.stripe_price_id,
-        { active: false },
-        { stripeAccount: acct },
-      );
+      await stripe.prices.update(plan.stripe_price_id, { active: false });
     } catch {
       // Si falla el archivado en Stripe, seguimos borrando en BD.
     }

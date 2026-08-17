@@ -34,14 +34,12 @@ export default async function ManageServicePage({
 
   const { data: service } = await supabase
     .from("services")
-    .select("*, plans(*), vendor:vendors(profile_id, charges_enabled)")
+    .select("*, plans(*), vendor:vendors(profile_id)")
     .eq("id", id)
     .single();
 
   // Solo el dueño puede gestionar.
-  const vendor = service?.vendor as
-    | { profile_id: string; charges_enabled: boolean }
-    | undefined;
+  const vendor = service?.vendor as { profile_id: string } | undefined;
   if (!service || !vendor || vendor.profile_id !== user!.id) notFound();
 
   const plans = ((service.plans as Plan[]) ?? []).sort((a, b) => a.amount - b.amount);

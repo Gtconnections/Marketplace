@@ -96,8 +96,9 @@ export default async function ServicePage({
   const plans = ((service.plans as Plan[]) ?? [])
     .filter((p) => p.active)
     .sort((a, b) => a.amount - b.amount);
-  const canPay =
-    isDemoPayments || Boolean(vendor?.stripe_account_id && vendor?.charges_enabled);
+  // Cuenta única: si hay claves de Stripe (modo stripe) o es demo, se puede pagar.
+  // El gate real por plan es tener stripe_price_id (lo maneja PricingPanel).
+  const canPay = true;
 
   const { data: reviewRows } = await supabase
     .from("reviews")
