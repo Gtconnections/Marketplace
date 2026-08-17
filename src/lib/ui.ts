@@ -49,11 +49,11 @@ export function btn(
   return cn(BUTTON_BASE, BUTTON_VARIANTS[variant], BUTTON_SIZES[size], extra);
 }
 
-/** Card de superficie. `hover` usa el estilo glass-card (elevación azul). */
+/** Card de superficie de vidrio. `hover` añade elevación (glass-card). */
 export function card(hover = false, extra?: string): string {
   return cn(
     "rounded-2xl",
-    hover ? "glass-card" : "border border-border bg-surface shadow-soft",
+    hover ? "glass-card" : "glass-surface",
     extra,
   );
 }

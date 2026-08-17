@@ -7,6 +7,7 @@ import {
   User,
   Settings,
   CreditCard,
+  Receipt,
   LogOut,
   ChevronDown,
 } from "@/components/icons";
@@ -74,7 +75,7 @@ export function UserMenu({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Menú de cuenta"
-        className="group inline-flex items-center gap-1.5 rounded-full border border-border bg-surface py-1 pl-1 pr-2 transition-all duration-200 hover:border-outline hover:shadow-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        className="group inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-1.5 transition-colors duration-200 hover:bg-fg/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
       >
         {avatar("h-7 w-7", "text-xs")}
         <ChevronDown
@@ -110,6 +111,11 @@ export function UserMenu({
             {!isAdmin && (
               <Link href="/dashboard" onClick={close} className={linkCls} role="menuitem">
                 <CreditCard className="h-4 w-4 text-muted" /> Mis suscripciones
+              </Link>
+            )}
+            {!isAdmin && (
+              <Link href="/pedidos" onClick={close} className={linkCls} role="menuitem">
+                <Receipt className="h-4 w-4 text-muted" /> Mis pedidos
               </Link>
             )}
           </div>

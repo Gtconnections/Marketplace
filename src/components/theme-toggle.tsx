@@ -9,6 +9,8 @@ import { cn } from "@/lib/ui";
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // Patrón estándar SSR: marcar montado en cliente para evitar mismatch.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   // Hasta que el componente se monte en el cliente no sabemos el tema real
@@ -29,7 +31,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       suppressHydrationWarning
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
-        "inline-grid h-11 w-11 place-items-center rounded-lg border border-border bg-surface text-fg transition-colors duration-200 hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+        "inline-grid h-11 w-11 place-items-center rounded-full text-muted transition-colors duration-200 hover:bg-fg/[0.05] hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
         className,
       )}
     >

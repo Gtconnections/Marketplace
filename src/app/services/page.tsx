@@ -2,7 +2,11 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ServiceCard } from "@/components/service-card";
 import { getFavoriteIds } from "@/lib/actions/favorites";
+import { publishDueServices } from "@/lib/publish-due";
+import { getStoreSettings } from "@/lib/store-settings";
 import { CatalogSidebar } from "@/components/catalog-sidebar";
+import { SearchAutocomplete } from "@/components/search-autocomplete";
+import { SERVICE_CATEGORIES } from "@/lib/config";
 import { Pagination } from "@/components/pagination";
 import { container, card, btn, cn } from "@/lib/ui";
 import type { Plan, Service, Vendor } from "@/lib/types";
@@ -34,6 +38,8 @@ export default async function ServicesPage({
   const pageNum = Math.max(1, Number(params.page) || 1);
   const hasFilters = Boolean(q || category || rating || downloadable);
 
+  await publishDueServices();
+  const { hero_image_url } = await getStoreSettings();
   const supabase = await createClient();
   let query = supabase
     .from("services")
@@ -74,7 +80,7 @@ export default async function ServicesPage({
         <div
           aria-hidden
           className="absolute inset-0 -z-20 bg-cover bg-center"
-          style={{ backgroundImage: `url(${HERO_IMG})` }}
+          style={{ backgroundImage: `url(${hero_image_url || HERO_IMG})` }}
         />
         {/* Overlay navy para contraste del texto */}
         <div
@@ -96,6 +102,12 @@ export default async function ServicesPage({
               tu flujo de trabajo. Calidad corporativa, velocidad tecnológica y
               diseño impecable en cada entrega.
             </p>
+            <div
+              className="animate-in mt-7 max-w-xl"
+              style={{ "--d": "160ms" } as React.CSSProperties}
+            >
+              <SearchAutocomplete initialQuery={q} />
+            </div>
           </div>
         </div>
       </section>
@@ -114,15 +126,33 @@ export default async function ServicesPage({
             </p>
             {list.length === 0 ? (
               <div className={card(false, "flex flex-col items-center gap-4 p-14 text-center")}>
-                <p className="text-muted">
+                <p className="font-medium text-fg">
                   {hasFilters
-                    ? "No encontramos servicios con esos filtros."
+                    ? q
+                      ? `Sin resultados para “${q}”.`
+                      : "No encontramos servicios con esos filtros."
                     : "Aún no hay servicios publicados."}
                 </p>
                 {hasFilters && (
-                  <Link href="/services" className={btn("secondary", "md")}>
-                    Limpiar filtros
-                  </Link>
+                  <>
+                    <p className="max-w-sm text-sm text-muted">
+                      Prueba con otros términos o explora por categoría:
+                    </p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {SERVICE_CATEGORIES.map((c) => (
+                        <Link
+                          key={c.value}
+                          href={`/services?category=${c.value}`}
+                          className="rounded-full border border-border px-3.5 py-1.5 text-sm text-muted transition-colors hover:border-primary/40 hover:text-primary"
+                        >
+                          {c.label}
+                        </Link>
+                      ))}
+                    </div>
+                    <Link href="/services" className={cn(btn("secondary", "md"), "mt-1")}>
+                      Limpiar filtros
+                    </Link>
+                  </>
                 )}
               </div>
             ) : (

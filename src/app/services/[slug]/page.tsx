@@ -2,20 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { formatMoney, priceSuffix } from "@/lib/utils";
-import { SERVICE_CATEGORIES } from "@/lib/config";
-import { SubscribeButton } from "@/components/subscribe-button";
-import { DemoCheckoutButton } from "@/components/demo-checkout-button";
+import { SERVICE_CATEGORIES, siteUrl } from "@/lib/config";
+import { PricingPanel } from "@/components/pricing-panel";
 import { ReviewForm } from "@/components/review-form";
+import { ReviewHelpfulButton } from "@/components/review-helpful-button";
+import { ReviewReplyForm } from "@/components/review-reply-form";
+import { QuestionForm } from "@/components/question-form";
+import { QuestionAnswerForm } from "@/components/question-answer-form";
 import { Stars } from "@/components/stars";
 import { FavoriteButton } from "@/components/favorite-button";
 import { ServiceCard } from "@/components/service-card";
 import { getFavoriteIds } from "@/lib/actions/favorites";
 import { Gallery } from "@/components/gallery";
-import { ArrowLeft, Paperclip, Lock, Check } from "@/components/icons";
+import { ArrowLeft, Paperclip, Lock, Check, CornerDownRight, HelpCircle } from "@/components/icons";
 import { isDemoPayments } from "@/lib/config";
-import { container, card, badge, btn, priceCls, cn } from "@/lib/ui";
-import type { Plan, Review, Service, ServiceImage, Vendor } from "@/lib/types";
+import { container, card, badge, btn, cn } from "@/lib/ui";
+import type { Plan, Question, Review, Service, ServiceImage, Vendor } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -39,16 +41,30 @@ export async function generateMetadata({
     .eq("slug", slug)
     .eq("status", "published")
     .single();
-  if (!data) return { title: "Servicio — Marketplace" };
+  if (!data) return { title: "Servicio no encontrado" };
 
   const title = data.meta_title || `${data.title} — Marketplace`;
   const description =
     data.meta_description || (data.description ?? "").slice(0, 160) || undefined;
   const images = data.cover_image_url ? [data.cover_image_url] : [];
+  const canonical = `/services/${slug}`;
   return {
-    title,
+    title: { absolute: title },
     description,
-    openGraph: { title, description, images },
+    alternates: { canonical },
+    openGraph: {
+      type: "article",
+      title,
+      description,
+      url: canonical,
+      images,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images,
+    },
   };
 }
 
@@ -97,6 +113,13 @@ export default async function ServicePage({
     .order("position", { ascending: true });
   const images = (imgRows ?? []) as ServiceImage[];
 
+  const { data: questionRows } = await supabase
+    .from("questions")
+    .select("*")
+    .eq("service_id", service.id)
+    .order("created_at", { ascending: false });
+  const questions = (questionRows ?? []) as Question[];
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -104,6 +127,7 @@ export default async function ServicePage({
   let hasAccess = false;
   let isFavorite = false;
   let myReview: Review | null = null;
+  let helpfulByMe = new Set<string>();
   if (user) {
     const { data: access } = await supabase
       .from("subscriptions")
@@ -124,6 +148,21 @@ export default async function ServicePage({
     isFavorite = Boolean(fav);
 
     myReview = reviews.find((r) => r.customer_id === user.id) ?? null;
+
+    // ¿A qué reseñas de esta página les di "útil"?
+    if (reviews.length > 0) {
+      const { data: votes } = await supabase
+        .from("review_helpful")
+        .select("review_id")
+        .eq("profile_id", user.id)
+        .in(
+          "review_id",
+          reviews.map((r) => r.id),
+        );
+      helpfulByMe = new Set(
+        (votes ?? []).map((v) => (v as { review_id: string }).review_id),
+      );
+    }
   }
 
   const isOwner = Boolean(user && vendor?.profile_id === user.id);
@@ -168,8 +207,50 @@ export default async function ServicePage({
   includes.push("Acceso inmediato tras el pago");
   if (subs.length) includes.push("Cancela cuando quieras");
 
+  // Datos estructurados (JSON-LD, schema.org Product) para buscadores.
+  const lowPlan = plans[0];
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: service.title,
+    description:
+      service.meta_description || service.description || undefined,
+    image:
+      images.length > 0
+        ? images.map((i) => i.url)
+        : service.cover_image_url
+          ? [service.cover_image_url]
+          : undefined,
+    brand: { "@type": "Brand", name: vendor?.display_name || "Marketplace" },
+    url: `${siteUrl}/services/${slug}`,
+    ...(service.rating_count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: service.rating_avg,
+            reviewCount: service.rating_count,
+          },
+        }
+      : {}),
+    ...(lowPlan
+      ? {
+          offers: {
+            "@type": "Offer",
+            price: (lowPlan.amount / 100).toFixed(2),
+            priceCurrency: (lowPlan.currency || "usd").toUpperCase(),
+            availability: "https://schema.org/InStock",
+            url: `${siteUrl}/services/${slug}`,
+          },
+        }
+      : {}),
+  };
+
   return (
     <div className={cn(container, "py-12")}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Link
         href="/"
         className="inline-flex items-center gap-1.5 text-sm font-medium text-muted transition-colors hover:text-fg"
@@ -278,52 +359,13 @@ export default async function ServicePage({
             {plans.length === 0 ? (
               <p className="mt-4 text-sm text-muted">No hay planes disponibles.</p>
             ) : (
-              <div className="mt-4 flex flex-col gap-3">
-                {plans.map((plan, i) => (
-                  <div
-                    key={plan.id}
-                    className={cn(
-                      "rounded-2xl border p-4 transition-all duration-200",
-                      i === 0
-                        ? "border-primary/30 bg-primary/5 ring-1 ring-inset ring-primary/10"
-                        : "border-border",
-                    )}
-                  >
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-sm font-semibold text-fg">{plan.name}</span>
-                      <span className="text-right">
-                        <span className={cn(priceCls, "text-xl font-bold tracking-tight text-fg")}>
-                          {formatMoney(plan.amount, plan.currency)}
-                        </span>
-                        <span className="text-sm font-normal text-muted">
-                          {priceSuffix(plan.type, plan.interval)}
-                        </span>
-                      </span>
-                    </div>
-                    {plan.trial_days ? (
-                      <p className="mt-1 text-xs font-medium text-success">
-                        {plan.trial_days} días de prueba gratis
-                      </p>
-                    ) : null}
-                    {!isOwner && (
-                      <div className="mt-4">
-                        {isDemoPayments ? (
-                          <DemoCheckoutButton
-                            planId={plan.id}
-                            label={plan.type === "one_time" ? "Comprar" : "Suscribirme"}
-                          />
-                        ) : (
-                          <SubscribeButton
-                            planId={plan.id}
-                            label={plan.type === "one_time" ? "Comprar" : "Suscribirme"}
-                            disabled={!canPay || !plan.stripe_price_id}
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <PricingPanel
+                serviceId={service.id}
+                plans={plans}
+                isDemo={isDemoPayments}
+                canPay={canPay}
+                isOwner={isOwner}
+              />
             )}
 
             {isOwner && (
@@ -354,7 +396,7 @@ export default async function ServicePage({
       </div>
 
       {/* ── Reseñas ── */}
-      <section className="animate-in mt-16 border-t border-border pt-12">
+      <section id="resenas" className="animate-in mt-16 scroll-mt-24 border-t border-border pt-12">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">
             Reseñas
@@ -391,6 +433,7 @@ export default async function ServicePage({
                   slug={slug}
                   initialRating={myReview?.rating ?? 0}
                   initialComment={myReview?.comment ?? ""}
+                  initialPhotoUrl={myReview?.photo_url ?? null}
                   editing={Boolean(myReview)}
                 />
               </>
@@ -435,6 +478,146 @@ export default async function ServicePage({
                       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-muted">
                         {r.comment}
                       </p>
+                    )}
+
+                    {/* Foto adjunta */}
+                    {r.photo_url && (
+                      <a
+                        href={r.photo_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 inline-block"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={r.photo_url}
+                          alt="Foto de la reseña"
+                          className="h-28 w-28 rounded-xl border border-border object-cover transition-transform hover:scale-[1.02]"
+                        />
+                      </a>
+                    )}
+
+                    {/* Útil + (responder, si es el dueño) */}
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <ReviewHelpfulButton
+                        reviewId={r.id}
+                        slug={slug}
+                        count={r.helpful_count ?? 0}
+                        voted={helpfulByMe.has(r.id)}
+                        canVote={Boolean(user)}
+                      />
+                    </div>
+
+                    {/* Respuesta del vendedor */}
+                    {r.vendor_reply && (
+                      <div className="mt-4 rounded-xl border border-primary/20 bg-primary/[0.05] p-4">
+                        <p className="flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase tracking-wide text-primary">
+                          <CornerDownRight className="h-3.5 w-3.5" />
+                          Respuesta del vendedor
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-fg">
+                          {r.vendor_reply}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* El dueño puede responder/editar */}
+                    {isOwner && (
+                      <ReviewReplyForm
+                        reviewId={r.id}
+                        slug={slug}
+                        initialReply={r.vendor_reply}
+                      />
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Preguntas y respuestas ── */}
+      <section id="preguntas" className="animate-in mt-16 scroll-mt-24 border-t border-border pt-12">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-fg">
+            Preguntas y respuestas
+          </h2>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 font-mono text-xs text-muted">
+            <HelpCircle className="h-3.5 w-3.5" /> {questions.length}
+          </span>
+        </div>
+
+        <div className="mt-8 grid gap-10 lg:grid-cols-[380px_1fr]">
+          {/* Preguntar */}
+          <div className={card(false, "h-fit p-6")}>
+            {isOwner ? (
+              <p className="text-sm text-muted">
+                Aquí verás las preguntas de tus clientes potenciales. Responde
+                para resolver dudas y cerrar más ventas.
+              </p>
+            ) : !user ? (
+              <p className="text-sm text-muted">
+                <Link
+                  href={`/login?next=/services/${slug}`}
+                  className="font-medium text-primary hover:text-primary-hover"
+                >
+                  Inicia sesión
+                </Link>{" "}
+                para hacer una pregunta sobre este servicio.
+              </p>
+            ) : (
+              <>
+                <h3 className="mb-4 font-semibold text-fg">Haz una pregunta</h3>
+                <QuestionForm serviceId={service.id} slug={slug} />
+              </>
+            )}
+          </div>
+
+          {/* Lista */}
+          <div>
+            {questions.length === 0 ? (
+              <div className={card(false, "p-8 text-center text-sm text-muted")}>
+                Aún no hay preguntas. ¿Tienes una duda? Sé el primero en preguntar.
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {questions.map((q) => (
+                  <li key={q.id} className={card(false, "p-5")}>
+                    <div className="flex items-start gap-2.5">
+                      <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-mono text-xs font-bold text-primary">
+                        P
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="whitespace-pre-wrap text-sm leading-6 text-fg">
+                          {q.body}
+                        </p>
+                        <p className="mt-1 font-mono text-[11px] text-muted">
+                          {q.asker_name || "Usuario"} · {fmtDate(q.created_at)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {q.answer && (
+                      <div className="mt-3 ml-8 rounded-xl border border-primary/20 bg-primary/[0.05] p-4">
+                        <p className="flex items-center gap-1.5 font-mono text-[11px] font-medium uppercase tracking-wide text-primary">
+                          <CornerDownRight className="h-3.5 w-3.5" />
+                          Respuesta del vendedor
+                        </p>
+                        <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-fg">
+                          {q.answer}
+                        </p>
+                      </div>
+                    )}
+
+                    {isOwner && (
+                      <div className="ml-8">
+                        <QuestionAnswerForm
+                          questionId={q.id}
+                          slug={slug}
+                          initialAnswer={q.answer}
+                        />
+                      </div>
                     )}
                   </li>
                 ))}

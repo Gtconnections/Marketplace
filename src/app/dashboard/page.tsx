@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatMoney, priceSuffix } from "@/lib/utils";
-import { Download } from "@/components/icons";
+import { Download, Receipt } from "@/components/icons";
 import { container, card, badge, btn, cn } from "@/lib/ui";
 import type { Plan, Service, Vendor } from "@/lib/types";
 
@@ -68,14 +68,22 @@ export default async function DashboardPage() {
                       {new Date(sub.current_period_end).toLocaleDateString("es")}
                     </p>
                   )}
-                  {active && service?.download_path && (
-                    <a
-                      href={`/api/download/${service.id}`}
-                      className={btn("secondary", "sm", "mt-3")}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {active && service?.download_path && (
+                      <a
+                        href={`/api/download/${service.id}`}
+                        className={cn(btn("secondary", "sm"), "gap-1.5")}
+                      >
+                        <Download className="h-4 w-4" /> Descargar archivo
+                      </a>
+                    )}
+                    <Link
+                      href={`/pedidos/${sub.id}`}
+                      className={cn(btn("ghost", "sm"), "gap-1.5")}
                     >
-                      <Download className="h-4 w-4" /> Descargar archivo
-                    </a>
-                  )}
+                      <Receipt className="h-4 w-4" /> Recibo
+                    </Link>
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className={badge(active ? "success" : "neutral")}>

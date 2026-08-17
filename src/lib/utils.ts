@@ -14,6 +14,22 @@ export function shortId(): string {
   return Math.random().toString(36).slice(2, 8);
 }
 
+/** Número de pedido legible a partir del id de la suscripción/compra. */
+export function orderNumber(id: string): string {
+  return id.replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
+/** Descuento en centavos para un importe, según el tipo de cupón. */
+export function computeDiscount(
+  type: "percent" | "fixed",
+  value: number,
+  amountCents: number,
+): number {
+  const d =
+    type === "percent" ? Math.round((amountCents * value) / 100) : value;
+  return Math.max(0, Math.min(d, amountCents));
+}
+
 /** Formatea centavos a moneda legible. */
 export function formatMoney(amountCents: number, currency = "usd"): string {
   return new Intl.NumberFormat("es", {

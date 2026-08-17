@@ -5,18 +5,42 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
-import Link from "next/link";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Nav } from "@/components/nav";
-import { container } from "@/lib/ui";
+import { Footer } from "@/components/footer";
+import { siteUrl } from "@/lib/config";
+import { getStoreSettings, isHexColor } from "@/lib/store-settings";
 
 // La app es dinámica (sesión + datos en cada request); sin prerender estático.
 export const dynamic = "force-dynamic";
 
+const SITE_NAME = "Marketplace";
+const DEFAULT_TITLE = "Marketplace — Servicios y suscripciones";
+const DEFAULT_DESC =
+  "Plataforma para ofrecer y contratar mentorías, membresías y servicios por suscripción.";
+
 export const metadata: Metadata = {
-  title: "Marketplace — Servicios y suscripciones",
-  description:
-    "Plataforma para ofrecer y contratar mentorías, membresías y servicios por suscripción.",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: DEFAULT_TITLE,
+    template: "%s — Marketplace",
+  },
+  description: DEFAULT_DESC,
+  applicationName: SITE_NAME,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESC,
+    url: siteUrl,
+    locale: "es_ES",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_TITLE,
+    description: DEFAULT_DESC,
+  },
 };
 
 export const viewport: Viewport = {
@@ -26,50 +50,25 @@ export const viewport: Viewport = {
   ],
 };
 
-const footerLinks = [
-  { label: "Nosotros", href: "/nosotros" },
-  { label: "Contacto", href: "/contacto" },
-  { label: "Privacidad", href: "/legal/privacidad" },
-  { label: "Términos", href: "/legal/terminos" },
-  { label: "Reembolsos", href: "/legal/reembolsos" },
-];
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const { accent } = await getStoreSettings();
+  // Override opcional del color de acento (marca de la tienda).
+  const accentCss =
+    accent && isHexColor(accent)
+      ? `:root{--primary:${accent};--primary-hover:color-mix(in srgb, ${accent} 82%, black);}` +
+        `.dark{--primary:${accent};--primary-hover:color-mix(in srgb, ${accent} 78%, white);}`
+      : "";
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" suppressHydrationWarning className="h-full antialiased">
       <body className="flex min-h-full flex-col bg-bg text-fg">
+        {accentCss && (
+          <style dangerouslySetInnerHTML={{ __html: accentCss }} />
+        )}
         <ThemeProvider>
           <Nav />
           <main className="flex-1">{children}</main>
-          <footer className="mt-24 border-t border-border bg-surface">
-            <div
-              className={`${container} flex flex-col items-center gap-6 py-12 text-sm text-muted sm:flex-row sm:justify-between`}
-            >
-              <div className="flex items-center gap-2.5">
-                <span
-                  aria-hidden
-                  className="grid h-7 w-7 place-items-center rounded-lg bg-primary font-display text-xs font-bold text-on-primary"
-                >
-                  M
-                </span>
-                <p>
-                  © {new Date().getFullYear()} Marketplace. Todos los derechos
-                  reservados.
-                </p>
-              </div>
-              <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
-                {footerLinks.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    className="transition-colors duration-200 hover:text-primary"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </div>
-          </footer>
+          <Footer />
         </ThemeProvider>
       </body>
     </html>

@@ -9,6 +9,7 @@ import {
   Compass,
   Heart,
   CreditCard,
+  Receipt,
   LayoutDashboard,
   User,
   Settings,
@@ -35,8 +36,10 @@ export function MobileMenu({
   const items: Item[] = [{ href: "/services", label: "Explorar", Icon: Compass }];
   if (authed) {
     items.push({ href: "/favorites", label: "Favoritos", Icon: Heart });
-    if (!isAdmin)
+    if (!isAdmin) {
       items.push({ href: "/dashboard", label: "Mis suscripciones", Icon: CreditCard });
+      items.push({ href: "/pedidos", label: "Mis pedidos", Icon: Receipt });
+    }
     if (isAdmin)
       items.push({ href: "/vendor", label: "Admin", Icon: LayoutDashboard });
     items.push(

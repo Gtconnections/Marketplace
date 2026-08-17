@@ -140,6 +140,25 @@ h3 {
   background-image: linear-gradient(135deg, var(--grad-a), var(--grad-b));
 }
 
+/* ── Nébula: fondo glassmorphism global (detrás de todo el contenido) ── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background-image:
+    radial-gradient(620px 520px at 10% 6%, color-mix(in srgb, #8b5cf6 20%, transparent), transparent 60%),
+    radial-gradient(680px 560px at 92% 12%, color-mix(in srgb, #38bdf8 18%, transparent), transparent 60%),
+    radial-gradient(520px 520px at 50% 100%, color-mix(in srgb, #a78bfa 16%, transparent), transparent 60%);
+}
+:where(.dark) body::before {
+  background-image:
+    radial-gradient(620px 520px at 10% 6%, color-mix(in srgb, #7c3aed 22%, transparent), transparent 62%),
+    radial-gradient(680px 560px at 92% 12%, color-mix(in srgb, #1d4ed8 20%, transparent), transparent 62%),
+    radial-gradient(520px 520px at 50% 100%, color-mix(in srgb, #6d28d9 18%, transparent), transparent 62%);
+}
+
 /* Glassmorphism: barra de navegación y contenedores translúcidos. */
 .glass {
   background-color: color-mix(in srgb, var(--surface) 80%, transparent);
@@ -147,18 +166,30 @@ h3 {
   -webkit-backdrop-filter: blur(12px) saturate(1.4);
 }
 
-/* Tarjeta glass: superficie sólida, borde sutil, elevación azul al hover. */
+/* Superficie de vidrio: translúcida con desenfoque y borde brillante. */
+.glass-surface,
 .glass-card {
-  background-color: var(--surface);
-  border: 1px solid color-mix(in srgb, var(--border) 55%, transparent);
+  background-color: color-mix(in srgb, var(--surface) 62%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.55);
   box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(14px) saturate(1.25);
+  -webkit-backdrop-filter: blur(14px) saturate(1.25);
+}
+:where(.dark) .glass-surface,
+:where(.dark) .glass-card {
+  background-color: color-mix(in srgb, var(--surface) 55%, transparent);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* La variante -card además se eleva al hover. */
+.glass-card {
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
     box-shadow 0.3s ease, border-color 0.3s ease;
 }
 .glass-card:hover {
   transform: translateY(-4px);
   box-shadow: var(--shadow-lg);
-  border-color: color-mix(in srgb, var(--primary) 35%, transparent);
+  border-color: color-mix(in srgb, var(--primary) 40%, white);
 }
 
 .shadow-soft {
@@ -256,6 +287,60 @@ h3 {
 }
 .animate-float {
   animation: float-slow 6s ease-in-out infinite;
+}
+
+/* ── Slider del hero: entrada direccional + trazo de la gráfica ── */
+@keyframes hero-slide-r {
+  from { opacity: 0; transform: translateX(28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-slide-l {
+  from { opacity: 0; transform: translateX(-28px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-card-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-draw {
+  from { stroke-dashoffset: 660; }
+  to { stroke-dashoffset: 0; }
+}
+.hero-slide-r {
+  animation: hero-slide-r 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.hero-slide-l {
+  animation: hero-slide-l 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+.hero-card-in {
+  animation: hero-card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.hero-draw {
+  stroke-dasharray: 660;
+  animation: hero-draw 1.1s ease 0.12s both;
+}
+
+/* ── Impresión: recibos limpios (oculta nav, footer y fondo) ── */
+@media print {
+  header,
+  footer,
+  .no-print {
+    display: none !important;
+  }
+  body::before {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .print-surface {
+    box-shadow: none !important;
+    border-color: #e5e7eb !important;
+    background: #fff !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

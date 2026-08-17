@@ -4,7 +4,7 @@
  */
 
 export type UserRole = "customer" | "vendor" | "admin";
-export type ServiceStatus = "draft" | "published";
+export type ServiceStatus = "draft" | "published" | "scheduled";
 export type PlanInterval = "month" | "year";
 /** Modelo de cobro del plan. */
 export type PlanType = "subscription" | "one_time";
@@ -49,6 +49,7 @@ export interface Service {
   rating_avg: number; // media de valoraciones (0–5)
   rating_count: number; // nº de reseñas
   status: ServiceStatus;
+  publish_at: string | null; // fecha de publicación programada (si scheduled)
   created_at: string;
 }
 
@@ -70,6 +71,11 @@ export interface Review {
   author_name: string | null;
   rating: number; // 1–5
   comment: string | null;
+  photo_url: string | null; // foto adjunta (opcional)
+  photo_path: string | null; // ruta en el bucket review-photos
+  helpful_count: number; // votos "me fue útil"
+  vendor_reply: string | null; // respuesta del vendedor
+  vendor_reply_at: string | null;
   created_at: string;
 }
 
@@ -100,6 +106,53 @@ export interface Subscription {
   stripe_checkout_session_id: string | null;
   status: SubscriptionStatus;
   current_period_end: string | null;
+  coupon_code: string | null;
+  discount_cents: number;
+  created_at: string;
+}
+
+export type CouponType = "percent" | "fixed";
+
+export interface Coupon {
+  id: string;
+  vendor_id: string;
+  code: string;
+  type: CouponType;
+  value: number; // percent 1–100 · fixed en centavos
+  active: boolean;
+  max_redemptions: number | null;
+  times_redeemed: number;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface Question {
+  id: string;
+  service_id: string;
+  vendor_id: string;
+  asker_id: string;
+  asker_name: string | null;
+  body: string;
+  answer: string | null;
+  answered_at: string | null;
+  created_at: string;
+}
+
+export type NotificationType =
+  | "purchase"
+  | "sale"
+  | "review"
+  | "renewal"
+  | "system";
+
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  body: string | null;
+  href: string | null;
+  read_at: string | null;
   created_at: string;
 }
 

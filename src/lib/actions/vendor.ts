@@ -285,14 +285,58 @@ export async function toggleServiceStatus(formData: FormData): Promise<void> {
   const next = String(formData.get("next_status") ?? "published");
 
   const supabase = await createClient();
+  // Publicar o despublicar limpia cualquier programación pendiente.
   await supabase
     .from("services")
-    .update({ status: next === "published" ? "published" : "draft" })
+    .update({
+      status: next === "published" ? "published" : "draft",
+      publish_at: null,
+    })
     .eq("id", serviceId);
 
   revalidatePath("/vendor");
   revalidatePath(`/vendor/services/${serviceId}`);
   revalidatePath("/");
+}
+
+/** Programa la publicación de un servicio para una fecha futura. */
+export async function scheduleService(formData: FormData): Promise<void> {
+  const serviceId = String(formData.get("service_id") ?? "");
+  const when = String(formData.get("publish_at") ?? "");
+  if (!serviceId || !when) return;
+
+  const ts = new Date(when);
+  if (Number.isNaN(ts.getTime())) return;
+  // Si la fecha ya pasó, publica de inmediato.
+  const isFuture = ts.getTime() > Date.now();
+
+  const supabase = await createClient();
+  await supabase
+    .from("services")
+    .update({
+      status: isFuture ? "scheduled" : "published",
+      publish_at: isFuture ? ts.toISOString() : null,
+    })
+    .eq("id", serviceId);
+
+  revalidatePath("/vendor");
+  revalidatePath(`/vendor/services/${serviceId}`);
+  revalidatePath("/");
+}
+
+/** Cancela una publicación programada (vuelve a borrador). */
+export async function cancelSchedule(formData: FormData): Promise<void> {
+  const serviceId = String(formData.get("service_id") ?? "");
+  if (!serviceId) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("services")
+    .update({ status: "draft", publish_at: null })
+    .eq("id", serviceId);
+
+  revalidatePath("/vendor");
+  revalidatePath(`/vendor/services/${serviceId}`);
 }
 
 /** Quita el archivo descargable de un servicio. */

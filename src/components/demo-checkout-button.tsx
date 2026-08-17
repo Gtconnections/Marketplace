@@ -21,13 +21,16 @@ function Submit({ label }: { label: string }) {
 export function DemoCheckoutButton({
   planId,
   label,
+  couponCode,
 }: {
   planId: string;
   label: string;
+  couponCode?: string;
 }) {
   return (
     <form action={demoCheckout}>
       <input type="hidden" name="plan_id" value={planId} />
+      <input type="hidden" name="coupon_code" value={couponCode ?? ""} />
       <Submit label={label} />
       <p className="mt-2 text-center text-xs text-muted">
         Pago de ejemplo · no se cobra nada
