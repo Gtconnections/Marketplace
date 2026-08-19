@@ -49,6 +49,15 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const m = session.metadata ?? {};
         if (m.customer_id && m.plan_id) {
+          // Idempotencia: si esta sesión ya se procesó, es un reintento de
+          // Stripe. No volver a crear/EXTENDER (evita sumar meses de más).
+          const { data: alreadyPaid } = await supabase
+            .from("payments")
+            .select("id")
+            .eq("stripe_checkout_session_id", session.id)
+            .maybeSingle();
+          if (alreadyPaid) break;
+
           const { data: plan } = await supabase
             .from("plans")
             .select("id, type, interval, amount, currency")
