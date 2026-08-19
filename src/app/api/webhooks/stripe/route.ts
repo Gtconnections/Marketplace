@@ -78,7 +78,21 @@ export async function POST(request: Request) {
                 }
               | undefined;
             const periodEnd = sub.current_period_end ?? firstItem?.current_period_end;
-            if (periodEnd) {
+            if (sub.status === "trialing") {
+              // Suscripción con TRIAL: la primera carga ocurre al terminar el
+              // trial y cubre un periodo completo. La renovación real (lo que
+              // mostramos) es un intervalo DESPUÉS del fin del trial.
+              // Ej.: compra el 19/08, trial hasta 23/08 → cobra y renueva 23/09.
+              const trialEnd = sub.trial_end ?? periodEnd;
+              if (trialEnd) {
+                const interval =
+                  firstItem?.price?.recurring?.interval ?? plan?.interval ?? "month";
+                const end = new Date(trialEnd * 1000);
+                if (interval === "year") end.setFullYear(end.getFullYear() + 1);
+                else end.setMonth(end.getMonth() + 1);
+                currentPeriodEnd = end.toISOString();
+              }
+            } else if (periodEnd) {
               currentPeriodEnd = new Date(periodEnd * 1000).toISOString();
             }
           }
