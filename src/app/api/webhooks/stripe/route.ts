@@ -129,6 +129,7 @@ export async function POST(request: Request) {
               .from("subscriptions")
               .update({
                 status: "active",
+                plan_id: m.plan_id,
                 current_period_end: currentPeriodEnd,
                 stripe_subscription_id: subId,
                 stripe_payment_intent_id: (session.payment_intent as string) ?? null,
