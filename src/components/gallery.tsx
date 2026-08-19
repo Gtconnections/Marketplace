@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { ServiceImage } from "@/lib/types";
 import { X, ArrowLeft, ArrowRight } from "@/components/icons";
@@ -11,9 +11,11 @@ import { cn } from "@/lib/ui";
 export function Gallery({
   images,
   title,
+  overlay,
 }: {
   images: ServiceImage[];
   title: string;
+  overlay?: ReactNode;
 }) {
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
@@ -46,18 +48,22 @@ export function Gallery({
   return (
     <div className="animate-in">
       {/* Imagen principal (clic → lightbox) */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Ampliar imagen"
-        className="group block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
-      >
-        <img
-          src={images[active]?.url}
-          alt={title}
-          className="aspect-[16/9] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-        />
-      </button>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Ampliar imagen"
+          className="group block w-full cursor-zoom-in overflow-hidden rounded-2xl border border-border bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-bg"
+        >
+          <img
+            src={images[active]?.url}
+            alt={title}
+            className="aspect-[16/9] w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          />
+        </button>
+        {/* Acción flotante (p. ej. Guardar) en la esquina superior izquierda */}
+        {overlay && <div className="absolute left-4 top-4 z-10">{overlay}</div>}
+      </div>
 
       {count > 1 && (
         <div className="mt-3 flex gap-2 overflow-x-auto pb-1">

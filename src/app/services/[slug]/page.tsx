@@ -296,7 +296,8 @@ export default async function ServicePage({
             </span>
           )}
         </div>
-        {!isOwner && (
+        {/* Solo sin imagen de portada: el "Guardar" va en el header */}
+        {!isOwner && images.length === 0 && (
           <div className="mt-5">
             <FavoriteButton
               serviceId={service.id}
@@ -312,7 +313,20 @@ export default async function ServicePage({
         {/* Detalle */}
         <div className="animate-in">
           {images.length > 0 && (
-            <Gallery images={images} title={service.title} />
+            <Gallery
+              images={images}
+              title={service.title}
+              overlay={
+                !isOwner ? (
+                  <FavoriteButton
+                    serviceId={service.id}
+                    active={isFavorite}
+                    next={`/services/${slug}`}
+                    variant="float"
+                  />
+                ) : undefined
+              }
+            />
           )}
 
           {service.description ? (
