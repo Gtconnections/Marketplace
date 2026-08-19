@@ -55,6 +55,18 @@ export async function POST(request: Request) {
   // Pago único (precio fijo) vs suscripción (membresía).
   const isOneTime = plan.type === "one_time";
 
+  // ¿Es una EXTENSIÓN de una suscripción ya activa del mismo servicio?
+  // En ese caso NO aplica trial: se cobra el mes completo desde la fecha actual.
+  const { data: existingSub } = await supabase
+    .from("subscriptions")
+    .select("id")
+    .eq("customer_id", user.id)
+    .eq("service_id", service.id)
+    .in("status", ["active", "trialing"])
+    .limit(1)
+    .maybeSingle();
+  const isExtension = !isOneTime && !!existingSub;
+
   const session = await stripe.checkout.sessions.create({
     mode: isOneTime ? "payment" : "subscription",
     line_items: [{ price: plan.stripe_price_id, quantity: 1 }],
@@ -65,7 +77,9 @@ export async function POST(request: Request) {
       ? { payment_intent_data: { metadata } }
       : {
           subscription_data: {
-            ...(plan.trial_days ? { trial_period_days: plan.trial_days } : {}),
+            ...(plan.trial_days && !isExtension
+              ? { trial_period_days: plan.trial_days }
+              : {}),
             metadata,
           },
         }),

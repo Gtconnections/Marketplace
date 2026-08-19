@@ -108,6 +108,9 @@ export async function POST(request: Request) {
               else base.setMonth(base.getMonth() + 1);
               currentPeriodEnd = base.toISOString();
             }
+            // Aplicación ATÓMICA: la extensión solo corre si esta sesión aún no
+            // se aplicó a esta suscripción. Si Stripe reentrega el evento (retry,
+            // doble entrega local+prod), la segunda vez no suma otro mes.
             const { error: updateError } = await supabase
               .from("subscriptions")
               .update({
@@ -118,8 +121,13 @@ export async function POST(request: Request) {
                 stripe_customer_id: (session.customer as string) ?? null,
                 stripe_checkout_session_id: session.id,
               })
-              .eq("id", existing.id);
+              .eq("id", existing.id)
+              .or(
+                `stripe_checkout_session_id.is.null,stripe_checkout_session_id.neq.${session.id}`,
+              );
             if (updateError) throw updateError;
+            // Si la fila no se actualizó, esta sesión ya estaba aplicada
+            // (reintento): igual nos aseguramos de que el pago quede registrado.
           } else {
             const { data: inserted, error: upsertError } = await supabase
               .from("subscriptions")
@@ -180,14 +188,18 @@ export async function POST(request: Request) {
         const periodEnd =
           sub.current_period_end ?? firstItem?.current_period_end ?? null;
 
+        // Solo actualizamos la fecha si Stripe nos da una fecha real.
+        // En suscripciones con TRIAL, current_period_end llega null y no
+        // debe pisar la fecha que ya calculamos al comprar/extender.
+        const updatePayload: { status: string; current_period_end?: string | null } = {
+          status: sub.status,
+        };
+        if (periodEnd) {
+          updatePayload.current_period_end = new Date(periodEnd * 1000).toISOString();
+        }
         const { error: updateError } = await supabase
           .from("subscriptions")
-          .update({
-            status: sub.status,
-            current_period_end: periodEnd
-              ? new Date(periodEnd * 1000).toISOString()
-              : null,
-          })
+          .update(updatePayload)
           .eq("stripe_subscription_id", sub.id);
         if (updateError) throw updateError;
         break;
