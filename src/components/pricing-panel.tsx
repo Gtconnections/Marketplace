@@ -171,10 +171,13 @@ export function PricingPanel({
                 {(() => {
                   const ownedOneTime =
                     plan.type === "one_time" && ownedPlanIds.includes(plan.id);
+                  // Si el cliente ya tiene contratado el servicio (cualquier
+                  // plan activo), todos los planes de suscripción extienden.
+                  const serviceContracted = ownedPlanIds.length > 0;
                   const label =
                     plan.type === "one_time"
                       ? "Comprar"
-                      : ownedPlanIds.includes(plan.id)
+                      : serviceContracted
                         ? "Extender Plan"
                         : "Suscribirme";
                   return ownedOneTime ? (
