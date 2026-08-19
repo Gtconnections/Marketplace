@@ -97,6 +97,31 @@ export default async function VendorSubscriptionsPage({
     }
   }
 
+  // Total acumulado de pagos por suscripción (neto, con descuentos aplicados).
+  const totalBySub = new Map<
+    string,
+    { cents: number; count: number; currency: string }
+  >();
+  if (rows.length > 0) {
+    const subIds = rows.map((r) => r.id);
+    const { data: payRows } = await supabase
+      .from("payments")
+      .select("subscription_id, amount_cents, discount_cents, currency")
+      .in("subscription_id", subIds);
+    for (const p of payRows ?? []) {
+      const key = p.subscription_id as string;
+      const cur = totalBySub.get(key) ?? {
+        cents: 0,
+        count: 0,
+        currency: (p.currency as string) ?? "usd",
+      };
+      cur.cents +=
+        ((p.amount_cents as number) ?? 0) - ((p.discount_cents as number) ?? 0);
+      cur.count += 1;
+      totalBySub.set(key, cur);
+    }
+  }
+
   return (
     <div className={cn(container, "animate-in py-12")}>
       <Link
@@ -132,12 +157,15 @@ export default async function VendorSubscriptionsPage({
                   <th className="px-5 py-3 font-medium">Estado</th>
                   <th className="px-5 py-3 font-medium">Alta</th>
                   <th className="px-5 py-3 font-medium">Renueva</th>
+                  <th className="px-5 py-3 text-right font-medium">Total pagado</th>
+                  <th className="px-5 py-3"></th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => {
                   const active =
                     r.status === "active" || r.status === "trialing";
+                  const totals = totalBySub.get(r.id);
                   return (
                     <tr key={r.id} className="border-b border-border last:border-0">
                       <td className="px-5 py-3 font-medium text-fg">
@@ -173,6 +201,19 @@ export default async function VendorSubscriptionsPage({
                           ? "Pago único"
                           : fmtDate(r.current_period_end)}
                       </td>
+                      <td className="px-5 py-3 text-right font-semibold text-fg">
+                        {totals && totals.count > 0
+                          ? `${formatMoney(totals.cents, totals.currency)}${totals.count > 1 ? ` · ${totals.count} pagos` : ""}`
+                          : "—"}
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        <Link
+                          href={`/vendor/subscriptions/${r.id}`}
+                          className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs font-medium text-fg transition-colors hover:border-primary/40 hover:text-primary"
+                        >
+                          Ver detalle
+                        </Link>
+                      </td>
                     </tr>
                   );
                 })}
@@ -184,6 +225,7 @@ export default async function VendorSubscriptionsPage({
           <div className="flex flex-col gap-3 md:hidden">
             {rows.map((r) => {
               const active = r.status === "active" || r.status === "trialing";
+              const totals = totalBySub.get(r.id);
               return (
                 <div key={r.id} className={card(false, "p-4")}>
                   <div className="flex items-center justify-between gap-2">
@@ -206,6 +248,27 @@ export default async function VendorSubscriptionsPage({
                       ? "Pago único"
                       : `próx. cobro ${fmtDate(r.current_period_end)}`}
                   </p>
+                  <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3">
+                    <span className="font-mono text-xs text-muted">
+                      {totals && totals.count > 0 ? (
+                        <>
+                          Total:{" "}
+                          <span className="font-semibold text-fg">
+                            {formatMoney(totals.cents, totals.currency)}
+                          </span>{" "}
+                          · {totals.count} {totals.count === 1 ? "pago" : "pagos"}
+                        </>
+                      ) : (
+                        "Sin pagos"
+                      )}
+                    </span>
+                    <Link
+                      href={`/vendor/subscriptions/${r.id}`}
+                      className="rounded-full border border-border px-3 py-1 text-xs font-medium text-fg transition-colors hover:border-primary/40 hover:text-primary"
+                    >
+                      Ver detalle
+                    </Link>
+                  </div>
                 </div>
               );
             })}
