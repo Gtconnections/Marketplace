@@ -129,16 +129,18 @@ export default async function ServicePage({
   let isFavorite = false;
   let myReview: Review | null = null;
   let helpfulByMe = new Set<string>();
+  let ownedPlanIds: string[] = [];
   if (user) {
-    const { data: access } = await supabase
+    const { data: accessRows } = await supabase
       .from("subscriptions")
-      .select("id")
+      .select("id, plan_id")
       .eq("customer_id", user.id)
       .eq("service_id", service.id)
-      .in("status", ["active", "trialing"])
-      .limit(1)
-      .maybeSingle();
-    hasAccess = Boolean(access);
+      .in("status", ["active", "trialing"]);
+    ownedPlanIds = (accessRows ?? []).map(
+      (r) => (r as { plan_id: string }).plan_id,
+    );
+    hasAccess = ownedPlanIds.length > 0;
 
     const { data: fav } = await supabase
       .from("favorites")
@@ -366,6 +368,7 @@ export default async function ServicePage({
                 isDemo={isDemoPayments}
                 canPay={canPay}
                 isOwner={isOwner}
+                ownedPlanIds={ownedPlanIds}
               />
             )}
 

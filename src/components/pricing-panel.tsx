@@ -28,12 +28,14 @@ export function PricingPanel({
   isDemo,
   canPay,
   isOwner,
+  ownedPlanIds = [],
 }: {
   serviceId: string;
   plans: PlanLite[];
   isDemo: boolean;
   canPay: boolean;
   isOwner: boolean;
+  ownedPlanIds?: string[];
 }) {
   const [code, setCode] = useState("");
   const [applied, setApplied] = useState<Applied | null>(null);
@@ -166,7 +168,16 @@ export function PricingPanel({
             ) : null}
             {!isOwner && (
               <div className="mt-4">
-                {isDemo ? (
+                {plan.type === "one_time" && ownedPlanIds.includes(plan.id) ? (
+                  <span
+                    className={cn(
+                      btn("secondary", "md"),
+                      "pointer-events-none w-full cursor-default justify-center opacity-80",
+                    )}
+                  >
+                    <Check className="h-4 w-4" /> Ya lo tienes
+                  </span>
+                ) : isDemo ? (
                   <DemoCheckoutButton
                     planId={plan.id}
                     label={plan.type === "one_time" ? "Comprar" : "Suscribirme"}
