@@ -168,28 +168,38 @@ export function PricingPanel({
             ) : null}
             {!isOwner && (
               <div className="mt-4">
-                {plan.type === "one_time" && ownedPlanIds.includes(plan.id) ? (
-                  <span
-                    className={cn(
-                      btn("secondary", "md"),
-                      "pointer-events-none w-full cursor-default justify-center opacity-80",
-                    )}
-                  >
-                    <Check className="h-4 w-4" /> Ya lo tienes
-                  </span>
-                ) : isDemo ? (
-                  <DemoCheckoutButton
-                    planId={plan.id}
-                    label={plan.type === "one_time" ? "Comprar" : "Suscribirme"}
-                    couponCode={applied?.code}
-                  />
-                ) : (
-                  <SubscribeButton
-                    planId={plan.id}
-                    label={plan.type === "one_time" ? "Comprar" : "Suscribirme"}
-                    disabled={!canPay || !plan.stripe_price_id}
-                  />
-                )}
+                {(() => {
+                  const ownedOneTime =
+                    plan.type === "one_time" && ownedPlanIds.includes(plan.id);
+                  const label =
+                    plan.type === "one_time"
+                      ? "Comprar"
+                      : ownedPlanIds.includes(plan.id)
+                        ? "Extender Plan"
+                        : "Suscribirme";
+                  return ownedOneTime ? (
+                    <span
+                      className={cn(
+                        btn("secondary", "md"),
+                        "pointer-events-none w-full cursor-default justify-center opacity-80",
+                      )}
+                    >
+                      <Check className="h-4 w-4" /> Ya lo tienes
+                    </span>
+                  ) : isDemo ? (
+                    <DemoCheckoutButton
+                      planId={plan.id}
+                      label={label}
+                      couponCode={applied?.code}
+                    />
+                  ) : (
+                    <SubscribeButton
+                      planId={plan.id}
+                      label={label}
+                      disabled={!canPay || !plan.stripe_price_id}
+                    />
+                  );
+                })()}
               </div>
             )}
           </div>
