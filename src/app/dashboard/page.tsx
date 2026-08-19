@@ -57,10 +57,21 @@ export default async function DashboardPage() {
               >
                 <div>
                   <h3 className="font-semibold tracking-tight text-fg">
-                    {service?.title}
+                    <Link
+                      href={`/services/${service?.slug}`}
+                      className="transition-colors hover:text-primary"
+                    >
+                      {service?.title}
+                    </Link>
                   </h3>
                   <p className="mt-0.5 text-sm text-muted">
-                    {service?.vendor?.display_name} · {plan?.name}
+                    {service?.vendor?.display_name} ·{" "}
+                    <Link
+                      href={`/services/${service?.slug}`}
+                      className="font-medium text-fg transition-colors hover:text-primary"
+                    >
+                      {plan?.name}
+                    </Link>
                   </p>
                   {plan?.type === "one_time" ? (
                     <p className="mt-1 text-xs text-muted">
@@ -83,9 +94,9 @@ export default async function DashboardPage() {
                     )}
                     <Link
                       href={`/pedidos/${sub.id}`}
-                      className={cn(btn("ghost", "sm"), "gap-1.5")}
+                      className={cn(btn("secondary", "sm"), "gap-1.5")}
                     >
-                      <Receipt className="h-4 w-4" /> Recibo
+                      <Receipt className="h-4 w-4" /> Historial de pagos
                     </Link>
                   </div>
                 </div>
