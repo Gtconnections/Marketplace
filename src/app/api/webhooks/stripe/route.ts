@@ -49,23 +49,112 @@ export async function POST(request: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const m = session.metadata ?? {};
         if (m.customer_id && m.plan_id) {
-          const { error: upsertError } = await supabase
+          const { data: plan } = await supabase
+            .from("plans")
+            .select("id, type, interval, amount, currency")
+            .eq("id", m.plan_id)
+            .single();
+          const isOneTime = plan?.type === "one_time";
+
+          const subId = (session.subscription as string) ?? null;
+          let currentPeriodEnd: string | null = null;
+          if (subId) {
+            const sub = (await stripe.subscriptions.retrieve(subId)) as Stripe.Subscription & {
+              current_period_end?: number;
+            };
+            const firstItem = sub.items?.data?.[0] as
+              | {
+                  current_period_end?: number;
+                  price?: { recurring?: { interval?: string } };
+                }
+              | undefined;
+            const periodEnd = sub.current_period_end ?? firstItem?.current_period_end;
+            if (periodEnd) {
+              currentPeriodEnd = new Date(periodEnd * 1000).toISOString();
+            }
+          }
+
+          // ¿El cliente ya tiene una suscripción activa de este servicio?
+          // → la EXTENDEMOS en lugar de duplicar.
+          const { data: existing } = await supabase
             .from("subscriptions")
+            .select("id, current_period_end")
+            .eq("customer_id", m.customer_id)
+            .eq("service_id", m.service_id)
+            .in("status", ["active", "trialing"])
+            .limit(1)
+            .maybeSingle();
+
+          let subscriptionId: string;
+
+          if (existing) {
+            subscriptionId = existing.id;
+            if (!isOneTime) {
+              const base = existing.current_period_end
+                ? new Date(existing.current_period_end).getTime() > Date.now()
+                  ? new Date(existing.current_period_end)
+                  : new Date()
+                : new Date();
+              if (plan?.interval === "year") base.setFullYear(base.getFullYear() + 1);
+              else base.setMonth(base.getMonth() + 1);
+              currentPeriodEnd = base.toISOString();
+            }
+            const { error: updateError } = await supabase
+              .from("subscriptions")
+              .update({
+                status: "active",
+                current_period_end: currentPeriodEnd,
+                stripe_subscription_id: subId,
+                stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+                stripe_customer_id: (session.customer as string) ?? null,
+                stripe_checkout_session_id: session.id,
+              })
+              .eq("id", existing.id);
+            if (updateError) throw updateError;
+          } else {
+            const { data: inserted, error: upsertError } = await supabase
+              .from("subscriptions")
+              .upsert(
+                {
+                  customer_id: m.customer_id,
+                  plan_id: m.plan_id,
+                  service_id: m.service_id,
+                  vendor_id: m.vendor_id,
+                  stripe_checkout_session_id: session.id,
+                  stripe_subscription_id: subId,
+                  stripe_payment_intent_id: (session.payment_intent as string) ?? null,
+                  stripe_customer_id: (session.customer as string) ?? null,
+                  status: "active",
+                  current_period_end: currentPeriodEnd,
+                },
+                { onConflict: "stripe_checkout_session_id" },
+              )
+              .select("id")
+              .single();
+            if (upsertError) throw upsertError;
+            subscriptionId = inserted.id;
+          }
+
+          // Historial de pagos.
+          const { error: paymentError } = await supabase
+            .from("payments")
             .upsert(
               {
+                subscription_id: subscriptionId,
                 customer_id: m.customer_id,
                 plan_id: m.plan_id,
                 service_id: m.service_id,
                 vendor_id: m.vendor_id,
+                amount_cents: plan?.amount ?? 0,
+                currency: plan?.currency ?? "usd",
+                status: "succeeded",
                 stripe_checkout_session_id: session.id,
-                stripe_subscription_id: (session.subscription as string) ?? null,
                 stripe_payment_intent_id: (session.payment_intent as string) ?? null,
-                stripe_customer_id: (session.customer as string) ?? null,
-                status: "active",
+                stripe_subscription_id: subId,
               },
               { onConflict: "stripe_checkout_session_id" },
             );
-          if (upsertError) throw upsertError;
+          if (paymentError) throw paymentError;
         }
         break;
       }

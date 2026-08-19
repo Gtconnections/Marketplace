@@ -42,101 +42,144 @@ export async function demoCheckout(formData: FormData): Promise<void> {
     .toUpperCase()
     .replace(/\s+/g, "");
 
-  // Si ya tiene acceso activo a este servicio, no duplicar.
+  // Si ya tiene acceso activo a este servicio, extender el vencimiento.
   const { data: existing } = await supabase
     .from("subscriptions")
-    .select("id")
+    .select("id, current_period_end, discount_cents")
     .eq("customer_id", user.id)
     .eq("service_id", plan.service_id)
     .in("status", ["active", "trialing"])
     .limit(1)
     .maybeSingle();
 
-  if (!existing) {
-    const days = plan.type === "one_time" ? 0 : plan.interval === "year" ? 365 : 30;
+  const admin = createAdminClient();
+
+  // Cupón: valida contra la BD (nunca confiar en el cliente) y calcula el descuento.
+  let couponCode: string | null = null;
+  let discountCents = 0;
+  if (rawCoupon) {
+    const { data: coupon } = await admin
+      .from("coupons")
+      .select("*")
+      .eq("vendor_id", vendorId)
+      .eq("code", rawCoupon)
+      .maybeSingle();
+    const valid =
+      coupon &&
+      coupon.active &&
+      (!coupon.expires_at ||
+        new Date(coupon.expires_at).getTime() >= Date.now()) &&
+      (coupon.max_redemptions == null ||
+        coupon.times_redeemed < coupon.max_redemptions);
+    if (valid) {
+      couponCode = coupon.code;
+      discountCents = computeDiscount(coupon.type, coupon.value, plan.amount);
+      // Registra el uso.
+      await admin
+        .from("coupons")
+        .update({ times_redeemed: coupon.times_redeemed + 1 })
+        .eq("id", coupon.id);
+    }
+  }
+
+  const days = plan.type === "one_time" ? 0 : plan.interval === "year" ? 365 : 30;
+  let subscriptionId: string;
+
+  if (existing && plan.type !== "one_time") {
+    const base =
+      existing.current_period_end &&
+      new Date(existing.current_period_end).getTime() > Date.now()
+        ? new Date(existing.current_period_end)
+        : new Date();
+    base.setDate(base.getDate() + days);
+    const { error } = await admin
+      .from("subscriptions")
+      .update({
+        status: "active",
+        current_period_end: base.toISOString(),
+        coupon_code: couponCode,
+        discount_cents: existing.discount_cents + discountCents,
+      })
+      .eq("id", existing.id);
+    if (error) throw new Error(error.message);
+    subscriptionId = existing.id;
+  } else if (existing) {
+    // Pago único ya activo: acceso permanente, no se toca la fecha.
+    subscriptionId = existing.id;
+  } else {
     const periodEnd =
       plan.type === "one_time"
         ? null
         : new Date(Date.now() + days * 86400000).toISOString();
+    const { data: inserted, error } = await admin
+      .from("subscriptions")
+      .insert({
+        customer_id: user.id,
+        plan_id: plan.id,
+        service_id: plan.service_id,
+        vendor_id: vendorId,
+        status: "active",
+        current_period_end: periodEnd,
+        coupon_code: couponCode,
+        discount_cents: discountCents,
+        stripe_checkout_session_id: `demo-${crypto.randomUUID()}`,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    subscriptionId = inserted.id;
+  }
 
-    const admin = createAdminClient();
+  // Historial de pagos.
+  const { error: paymentError } = await admin.from("payments").insert({
+    subscription_id: subscriptionId,
+    customer_id: user.id,
+    plan_id: plan.id,
+    service_id: plan.service_id,
+    vendor_id: vendorId,
+    amount_cents: plan.amount,
+    currency: plan.currency,
+    coupon_code: couponCode,
+    discount_cents: discountCents,
+    status: "succeeded",
+    stripe_checkout_session_id: `demo-${crypto.randomUUID()}`,
+  });
+  if (paymentError) throw new Error(paymentError.message);
 
-    // Cupón: valida contra la BD (nunca confiar en el cliente) y calcula el descuento.
-    let couponCode: string | null = null;
-    let discountCents = 0;
-    if (rawCoupon) {
-      const { data: coupon } = await admin
-        .from("coupons")
-        .select("*")
-        .eq("vendor_id", vendorId)
-        .eq("code", rawCoupon)
-        .maybeSingle();
-      const valid =
-        coupon &&
-        coupon.active &&
-        (!coupon.expires_at ||
-          new Date(coupon.expires_at).getTime() >= Date.now()) &&
-        (coupon.max_redemptions == null ||
-          coupon.times_redeemed < coupon.max_redemptions);
-      if (valid) {
-        couponCode = coupon.code;
-        discountCents = computeDiscount(coupon.type, coupon.value, plan.amount);
-        // Registra el uso.
-        await admin
-          .from("coupons")
-          .update({ times_redeemed: coupon.times_redeemed + 1 })
-          .eq("id", coupon.id);
-      }
-    }
-
-    // Inserta con la service role (las escrituras en subscriptions van por servidor).
-    await admin.from("subscriptions").insert({
-      customer_id: user.id,
-      plan_id: plan.id,
-      service_id: plan.service_id,
-      vendor_id: vendorId,
-      status: "active",
-      current_period_end: periodEnd,
-      coupon_code: couponCode,
-      discount_cents: discountCents,
-      stripe_checkout_session_id: `demo-${crypto.randomUUID()}`,
-    });
-
-    // Avisos: al comprador (confirmación) y al vendedor (nueva venta).
-    const title = svc?.title || "tu nuevo servicio";
-    const savedNote =
-      discountCents > 0
-        ? ` Ahorraste ${formatMoney(discountCents, plan.currency)} con ${couponCode}.`
-        : "";
-    const { data: vendorRow } = await admin
-      .from("vendors")
-      .select("profile_id")
-      .eq("id", vendorId)
-      .maybeSingle();
-    const vendorOwnerId = (vendorRow as { profile_id?: string } | null)
-      ?.profile_id;
+  // Avisos: al comprador (confirmación) y al vendedor (nueva venta).
+  const title = svc?.title || "tu nuevo servicio";
+  const savedNote =
+    discountCents > 0
+      ? ` Ahorraste ${formatMoney(discountCents, plan.currency)} con ${couponCode}.`
+      : "";
+  const { data: vendorRow } = await admin
+    .from("vendors")
+    .select("profile_id")
+    .eq("id", vendorId)
+    .maybeSingle();
+  const vendorOwnerId = (vendorRow as { profile_id?: string } | null)
+    ?.profile_id;
 
     await notifyMany([
-      {
-        userId: user.id,
-        type: "purchase",
-        title: "¡Compra confirmada!",
-        body: `Ya tienes acceso a “${title}”.${savedNote}`,
-        href: "/dashboard",
-      },
-      ...(vendorOwnerId && vendorOwnerId !== user.id
-        ? [
-            {
-              userId: vendorOwnerId,
-              type: "sale" as const,
-              title: "Nueva venta",
-              body: `Alguien contrató “${title}”.`,
-              href: "/vendor/subscriptions",
-            },
-          ]
-        : []),
-    ]);
-  }
+    {
+      userId: user.id,
+      type: "purchase",
+      title: "¡Compra confirmada!",
+      body: `Ya tienes acceso a “${title}”.${savedNote}`,
+      href: "/dashboard",
+    },
+    ...(vendorOwnerId && vendorOwnerId !== user.id
+      ? [
+          {
+            userId: vendorOwnerId,
+            type: "sale" as const,
+            title: "Nueva venta",
+            body: `Alguien contrató “${title}”.`,
+            href: "/vendor/subscriptions",
+          },
+        ]
+      : []),
+  ]);
 
   revalidatePath("/dashboard");
   redirect(

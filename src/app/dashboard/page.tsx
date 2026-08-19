@@ -62,12 +62,16 @@ export default async function DashboardPage() {
                   <p className="mt-0.5 text-sm text-muted">
                     {service?.vendor?.display_name} · {plan?.name}
                   </p>
-                  {sub.current_period_end && (
+                  {plan?.type === "one_time" ? (
+                    <p className="mt-1 text-xs text-muted">
+                      Pago único · acceso permanente
+                    </p>
+                  ) : sub.current_period_end ? (
                     <p className="mt-1 text-xs text-muted">
                       Renueva el{" "}
                       {new Date(sub.current_period_end).toLocaleDateString("es")}
                     </p>
-                  )}
+                  ) : null}
                   <div className="mt-3 flex flex-wrap items-center gap-2">
                     {active && service?.download_path && (
                       <a

@@ -169,7 +169,9 @@ export default async function VendorSubscriptionsPage({
                         {fmtDate(r.created_at)}
                       </td>
                       <td className="px-5 py-3 font-mono text-xs text-muted">
-                        {fmtDate(r.current_period_end)}
+                        {r.plan?.type === "one_time"
+                          ? "Pago único"
+                          : fmtDate(r.current_period_end)}
                       </td>
                     </tr>
                   );
@@ -198,6 +200,11 @@ export default async function VendorSubscriptionsPage({
                       ? `${r.plan.name} · ${formatMoney(r.plan.amount, r.plan.currency)}${priceSuffix(r.plan.type, r.plan.interval)}`
                       : "—"}{" "}
                     · alta {fmtDate(r.created_at)}
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs text-muted">
+                    {r.plan?.type === "one_time"
+                      ? "Pago único"
+                      : `próx. cobro ${fmtDate(r.current_period_end)}`}
                   </p>
                 </div>
               );
