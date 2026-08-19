@@ -88,14 +88,14 @@ export default async function ServicesPage({
           className="absolute inset-0 -z-10 bg-gradient-to-br from-[#081228]/92 via-[#0a1734]/82 to-[#0b2050]/70"
         />
         <div className={cn(container, "relative py-12 sm:py-16")}>
-          <div className="mx-auto max-w-3xl">
+          <div className="mx-auto max-w-3xl text-center">
             <p className="eyebrow animate-in !text-[#9db4ff]">El catálogo</p>
             <h1 className="animate-in mt-3 text-4xl font-extrabold leading-[1.1] tracking-tight text-white sm:text-5xl">
               Explora nuestra selección de{" "}
               <span className="text-[#9db4ff]">servicios digitales</span>
             </h1>
             <p
-              className="animate-in mt-5 max-w-2xl text-lg leading-relaxed text-white/80"
+              className="animate-in mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-white/80"
               style={{ "--d": "80ms" } as React.CSSProperties}
             >
               Descubre herramientas y recursos premium diseñados para acelerar
@@ -103,7 +103,7 @@ export default async function ServicesPage({
               diseño impecable en cada entrega.
             </p>
             <div
-              className="animate-in mt-7 max-w-xl"
+              className="animate-in mx-auto mt-7 max-w-xl"
               style={{ "--d": "160ms" } as React.CSSProperties}
             >
               <SearchAutocomplete initialQuery={q} />
